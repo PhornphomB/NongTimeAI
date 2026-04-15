@@ -1,0 +1,134 @@
+{
+  "info": {
+    "name": "NongTimeAI API",
+    "description": "Timesheet AI Bot API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Ollama Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/ollama",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "ollama"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Timesheet",
+      "item": [
+        {
+          "name": "Process - Complete Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"แก้บั๊กหน้าล็อกอิน 2 ชม.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/timesheet/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timesheet", "process"]
+            }
+          }
+        },
+        {
+          "name": "Process - Incomplete (No Hours)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"ประชุมทีม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/timesheet/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timesheet", "process"]
+            }
+          }
+        },
+        {
+          "name": "Process - Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"ทำ API สำหรับ User Management 3.5 ชม.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/timesheet/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timesheet", "process"]
+            }
+          }
+        },
+        {
+          "name": "Generate Reminder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeName\": \"สมชาย\",\n  \"projectName\": \"ระบบ CRM\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/timesheet/reminder",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timesheet", "reminder"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}

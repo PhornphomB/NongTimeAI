@@ -1,0 +1,57 @@
+### Test NongTimeAI Timesheet API
+
+### 0. Health Check - Service Status
+GET https://localhost:7000/api/health
+
+### 0.1 Health Check - Ollama Connectivity
+GET https://localhost:7000/api/health/ollama
+
+### 1. Process Complete Timesheet Message
+POST https://localhost:7000/api/timesheet/process
+Content-Type: application/json
+
+{
+  "message": "แก้บั๊กหน้าล็อกอิน 2 ชม."
+}
+
+### 2. Process Incomplete Message (No Hours)
+POST https://localhost:7000/api/timesheet/process
+Content-Type: application/json
+
+{
+  "message": "ประชุมทีม"
+}
+
+### 3. Process Task Message
+POST https://localhost:7000/api/timesheet/process
+Content-Type: application/json
+
+{
+  "message": "ทำ API สำหรับ User Management 3.5 ชม."
+}
+
+### 4. Process Incomplete Message (No Detail)
+POST https://localhost:7000/api/timesheet/process
+Content-Type: application/json
+
+{
+  "message": "2 ชม."
+}
+
+### 5. Generate Reminder Message
+POST https://localhost:7000/api/timesheet/reminder
+Content-Type: application/json
+
+{
+  "employeeName": "สมชาย",
+  "projectName": "ระบบ CRM"
+}
+
+### 6. Generate Another Reminder
+POST https://localhost:7000/api/timesheet/reminder
+Content-Type: application/json
+
+{
+  "employeeName": "สมหญิง",
+  "projectName": "Mobile App"
+}

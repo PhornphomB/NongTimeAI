@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: nongtimeai-postgres
+    environment:
+      POSTGRES_DB: nongtimeai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - nongtime-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nongtimeai-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - nongtime-network
+    restart: unless-stopped
+    # Uncomment below if you have NVIDIA GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # NongTimeAI API Service
+  nongtimeai-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nongtimeai-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=nongtimeai;Username=postgres;Password=postgres
+      - Ollama__BaseUrl=http://ollama:11434
+      - Ollama__Model=llama3.2
+      - Line__ChannelAccessToken=${LINE_CHANNEL_ACCESS_TOKEN}
+      - Line__ChannelSecret=${LINE_CHANNEL_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - nongtime-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
+
+networks:
+  nongtime-network:
+    driver: bridge
