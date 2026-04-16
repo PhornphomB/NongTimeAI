@@ -271,7 +271,7 @@ public class LineWebhookController : ControllerBase
                 idMessage += "Copy ID นี้ไปใส่ในตาราง Users\n";
                 idMessage += "ช่อง line_user_id\n\n";
                 idMessage += "💡 ตัวอย่าง SQL:\n";
-                idMessage += "UPDATE com.t_com_user\n";
+                idMessage += "UPDATE sec.t_com_user\n";
                 idMessage += $"SET line_user_id = '{userId}'\n";
                 idMessage += "WHERE user_id = 'YOUR_USER_ID';";
 
@@ -279,8 +279,10 @@ public class LineWebhookController : ControllerBase
 
                 try
                 {
-                    await _lineService.ReplyMessageAsync(replyToken, idMessage);
-                    _logger.LogInformation("✅ Sent LINE User ID to user {UserId}", userId);
+                    // สร้าง Quick Reply พร้อมปุ่ม Default
+                    var quickReply = LineMessageHelper.CreateTextWithQuickReply(idMessage);
+                    await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { quickReply });
+                    _logger.LogInformation("✅ Sent LINE User ID with Quick Reply to user {UserId}", userId);
                 }
                 catch (Exception ex)
                 {
@@ -312,8 +314,10 @@ public class LineWebhookController : ControllerBase
 
                 try
                 {
-                    await _lineService.ReplyMessageAsync(replyToken, notFoundMessage);
-                    _logger.LogInformation("✅ Sent 'user not found' message to {UserId}", userId);
+                    // สร้าง Quick Reply พร้อมปุ่ม Default
+                    var quickReply = LineMessageHelper.CreateTextWithQuickReply(notFoundMessage);
+                    await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { quickReply });
+                    _logger.LogInformation("✅ Sent 'user not found' message with Quick Reply to {UserId}", userId);
                 }
                 catch (Exception ex)
                 {
@@ -328,6 +332,23 @@ public class LineWebhookController : ControllerBase
             if (messageText.StartsWith("SELECT_TASK:"))
             {
                 await HandleTaskSelection(user.UserId, userId, messageText, replyToken);
+                return;
+            }
+
+            // ✅ ตรวจสอบว่าเป็นการยืนยันบันทึกหรือไม่
+            if (messageText.StartsWith("CONFIRM_SAVE:"))
+            {
+                await HandleConfirmSave(user.UserId, userId, messageText, replyToken);
+                return;
+            }
+
+            // ✅ ตรวจสอบว่าเป็นการยกเลิกบันทึกหรือไม่
+            if (messageText == "CANCEL_SAVE")
+            {
+                _sessionService.ClearPendingTimesheetEntry(userId);
+                _sessionService.ClearSelectedTask(userId);
+                var cancelMsg = LineMessageHelper.CreateTextWithQuickReply("❌ ยกเลิกการบันทึก Timesheet แล้วครับ");
+                await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { cancelMsg });
                 return;
             }
 
@@ -843,7 +864,7 @@ public class LineWebhookController : ControllerBase
         {
             // Parse: "SELECT_TASK:434"
             var parts = messageText.Split(':');
-            if (parts.Length != 2 || !long.TryParse(parts[1], out var taskId))
+            if (parts.Length != 2 || !int.TryParse(parts[1], out var taskId))
             {
                 await _lineService.ReplyMessageAsync(replyToken, "รูปแบบข้อมูลไม่ถูกต้อง");
                 return;
@@ -874,45 +895,40 @@ public class LineWebhookController : ControllerBase
 
             if (pendingEntry != null && pendingEntry.IsComplete)
             {
-                // ✅ มีข้อมูล Timesheet ที่รอบันทึก - บันทึกทันที
+                // ✅ มีข้อมูล Timesheet ที่รอบันทึก - แสดง Issue Type ทั้งหมดพร้อมปุ่มบันทึก
                 _logger.LogInformation(
-                    "💾 Found pending entry, saving immediately: User={UserId}, Task={TaskId}, Detail={Detail}",
-                    user.UserId, taskId, pendingEntry.Detail
+                    "📝 Found pending entry, showing all issue types: User={UserId}, Task={TaskId}, Detail={Detail}, IssueType={IssueType}",
+                    user.UserId, taskId, pendingEntry.Detail, pendingEntry.IssueType
                 );
 
-                var saveSuccess = await _taskNotificationService.SaveTaskTrackingAsync(
-                    user.UserId,
-                    lineUserId,
-                    pendingEntry,
-                    taskId
+                // เก็บ Task ที่เลือกไว้
+                _sessionService.SetSelectedTask(lineUserId, taskId, task.TaskName ?? "");
+
+                // ดึง Issue Types ทั้งหมด
+                var issueTypes = await _taskNotificationService.GetIssueTypesAsync();
+
+                // สร้าง Quick Reply พร้อม Issue Type ทั้งหมด
+                var quickReply = LineMessageHelper.GetConfirmTimesheetQuickReply(
+                    pendingEntry.IssueType ?? "Other",
+                    issueTypes
                 );
 
-                // ลบข้อมูลใน Session
-                _sessionService.ClearPendingTimesheetEntry(lineUserId);
-                _sessionService.ClearSelectedTask(lineUserId);
+                var promptMessage = $"📝 **รับทราบข้อมูลแล้วครับ**\n";
+                promptMessage += "━━━━━━━━━━━━━━━━━━━━\n\n";
+                promptMessage += $"📋 **งาน:** {task.TaskName}\n";
+                promptMessage += $"💼 **รายละเอียด:** {pendingEntry.Detail}\n";
+                promptMessage += $"⏱️ **ชั่วโมง:** {pendingEntry.Hours} ชม.\n";
+                promptMessage += $"🏷️ **ประเภทที่แนะนำ:** {pendingEntry.IssueType ?? "Other"}\n";
+                promptMessage += $"📅 **วันที่:** {(pendingEntry.Date.HasValue ? pendingEntry.Date.Value.ToString("dd/MM/yyyy") : "วันนี้")}\n\n";
+                promptMessage += "━━━━━━━━━━━━━━━━━━━━\n\n";
+                promptMessage += "🎯 **กรุณาเลือกประเภทงาน:**\n";
+                promptMessage += $"✅ กดปุ่ม \"✅ บันทึก\" เพื่อบันทึกด้วยประเภทที่แนะนำ\n";
+                promptMessage += "🔄 หรือเลือกประเภทอื่นจากปุ่มด้านล่าง";
 
-                if (saveSuccess)
-                {
-                    var successMsg = $"✅ บันทึก Timesheet สำเร็จ!\n\n";
-                    successMsg += $"📋 งาน: {task.TaskName}\n";
-                    successMsg += $"📝 {pendingEntry.Detail}\n";
-                    successMsg += $"⏱️ {pendingEntry.Hours} ชั่วโมง\n";
-                    successMsg += $"🏷️ {pendingEntry.IssueType}\n";
-                    successMsg += $"📅 {(pendingEntry.Date.HasValue ? pendingEntry.Date.Value.ToString("dd/MM/yyyy") : "วันนี้")}";
+                var msgWithQuickReply = new TextMessage(promptMessage, quickReply);
+                await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { msgWithQuickReply });
 
-                    // ✅ แสดงปุ่ม Quick Reply เมนูปกติหลังบันทึกสำเร็จ
-                    var textWithQuickReply = LineMessageHelper.CreateTextWithQuickReply(successMsg);
-                    await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { textWithQuickReply });
-
-                    _logger.LogInformation(
-                        "✅ Timesheet saved immediately after task selection: User={UserId}, Task={TaskId}, Hours={Hours}",
-                        user.UserId, taskId, pendingEntry.Hours
-                    );
-                }
-                else
-                {
-                    await _lineService.ReplyMessageAsync(replyToken, "❌ เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่อีกครั้ง");
-                }
+                _logger.LogInformation("✅ Sent confirmation with all issue types to user {UserId}", user.UserId);
             }
             else
             {
@@ -1083,6 +1099,86 @@ public class LineWebhookController : ControllerBase
         {
             _logger.LogError(ex, "Failed to handle issue type selection");
             await _lineService.ReplyMessageAsync(replyToken, "เกิดข้อผิดพลาดในการเลือกประเภทงาน");
+        }
+    }
+
+    private async Task HandleConfirmSave(string userId, string lineUserId, string messageText, string replyToken)
+    {
+        try
+        {
+            // Parse: "CONFIRM_SAVE:Bug"
+            var parts = messageText.Split(':');
+            if (parts.Length != 2)
+            {
+                await _lineService.ReplyMessageAsync(replyToken, "รูปแบบข้อมูลไม่ถูกต้อง");
+                return;
+            }
+
+            var issueType = parts[1];
+
+            _logger.LogInformation(
+                "✅ Confirming save with issue type: User={UserId}, IssueType={IssueType}",
+                userId, issueType
+            );
+
+            // ดึงข้อมูลจาก Session
+            var (selectedTaskId, selectedTaskName) = _sessionService.GetSelectedTask(lineUserId);
+            var pendingEntry = _sessionService.GetPendingTimesheetEntry(lineUserId);
+
+            if (!selectedTaskId.HasValue || pendingEntry == null)
+            {
+                _logger.LogWarning("No task or pending entry found for user {UserId}", userId);
+                var errorMsg = LineMessageHelper.CreateTextWithQuickReply("❌ ไม่พบข้อมูลการบันทึก กรุณาลองใหม่อีกครั้ง");
+                await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { errorMsg });
+                return;
+            }
+
+            // อัปเดต IssueType
+            pendingEntry.IssueType = issueType;
+            pendingEntry.IsComplete = true;
+
+            // บันทึก Timesheet
+            var saveSuccess = await _taskNotificationService.SaveTaskTrackingAsync(
+                userId,
+                lineUserId,
+                pendingEntry,
+                selectedTaskId.Value
+            );
+
+            // ลบ session
+            _sessionService.ClearPendingTimesheetEntry(lineUserId);
+            _sessionService.ClearSelectedTask(lineUserId);
+
+            if (saveSuccess)
+            {
+                var successMsg = $"✅ **บันทึก Timesheet สำเร็จ!**\n";
+                successMsg += "━━━━━━━━━━━━━━━━━━━━\n\n";
+                successMsg += $"📋 **งาน:** {selectedTaskName}\n";
+                successMsg += $"📝 **รายละเอียด:** {pendingEntry.Detail}\n";
+                successMsg += $"⏱️ **ชั่วโมง:** {pendingEntry.Hours} ชม.\n";
+                successMsg += $"🏷️ **ประเภท:** {pendingEntry.IssueType}\n";
+                successMsg += $"📅 **วันที่:** {(pendingEntry.Date.HasValue ? pendingEntry.Date.Value.ToString("dd/MM/yyyy") : "วันนี้")}\n\n";
+                successMsg += "━━━━━━━━━━━━━━━━━━━━\n";
+                successMsg += "✨ บันทึกเรียบร้อยแล้ว";
+
+                var textWithQuickReply = LineMessageHelper.CreateTextWithQuickReply(successMsg);
+                await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { textWithQuickReply });
+
+                _logger.LogInformation(
+                    "✅ Timesheet saved successfully: User={UserId}, Task={TaskId}, IssueType={IssueType}",
+                    userId, selectedTaskId.Value, issueType
+                );
+            }
+            else
+            {
+                var errorMsg = LineMessageHelper.CreateTextWithQuickReply("❌ เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่อีกครั้ง");
+                await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { errorMsg });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle confirm save");
+            await _lineService.ReplyMessageAsync(replyToken, "เกิดข้อผิดพลาดในการบันทึก");
         }
     }
 

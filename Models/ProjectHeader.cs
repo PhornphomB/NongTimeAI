@@ -9,7 +9,7 @@ public class ProjectHeader
 {
     [Key]
     [Column("project_header_id")]
-    public long ProjectHeaderId { get; set; }
+    public int ProjectHeaderId { get; set; }
 
     [Column("master_project_id")]
     public int? MasterProjectId { get; set; }
@@ -45,7 +45,7 @@ public class ProjectHeader
     public int SaleId { get; set; }
 
     [Column("customer_id")]
-    public long CustomerId { get; set; }
+    public int CustomerId { get; set; }
 
     [Column("manday")]
     [Precision(18, 5)]

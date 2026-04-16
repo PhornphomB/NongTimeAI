@@ -186,68 +186,53 @@ public class TimesheetDbContext : DbContext
         }
     }
 
-    // Function to get pending tasks
-    public async Task<List<PendingTaskDto>> GetPendingTasksAsync(string userId)
-    {
-        var sql = @"
-            SELECT 
-                t.project_task_id AS ProjectTaskId,
-                t.task_no AS TaskNo,
-                t.task_name AS TaskName,
-                t.task_status AS TaskStatus,
-                t.task_description AS TaskDescription,
-                t.start_date::DATE AS StartDate,
-                t.end_date::DATE AS EndDate,
-                t.end_date_extend::DATE AS EndDateExtend,
-                t.priority AS Priority,
-                CASE t.priority 
-                    WHEN 'High' THEN 1 
-                    WHEN 'Medium' THEN 2 
-                    WHEN 'Low' THEN 3 
-                    ELSE 4 
-                END AS PriorityOrder,
-                t.manday AS Manday,
-                t.issue_type AS IssueType,
-                t.remark AS Remark,
-                prjHD.project_header_id AS ProjectHeaderId,
-                prjHD.project_no AS ProjectNo,
-                prjHD.project_name AS ProjectName,
-                prjHD.project_type AS ProjectType,
-                prjHD.application_type AS ApplicationType,
-                cust.customer_name AS CustomerName,
-                (u.first_name || ' ' || u.last_name) AS CreateBy,
-                t.create_date AS CreateDate,
-                t.update_by AS UpdateBy,
-                t.update_date AS UpdateDate
-            FROM tmt.t_tmt_project_task t
-            INNER JOIN tmt.t_tmt_project_header prjHD 
-                ON t.project_header_id = prjHD.project_header_id AND prjHD.is_active = 'YES'
-            LEFT JOIN tmt.t_tmt_customer cust 
-                ON prjHD.customer_id = cust.customer_id
-            LEFT JOIN sec.t_com_user u 
-                ON u.user_id = t.create_by
-            WHERE EXISTS (
-                SELECT 1 
-                FROM tmt.t_tmt_project_task_member tm 
-                WHERE tm.project_task_id = t.project_task_id 
-                  AND t.task_status <> 'close'
-                  AND tm.user_id = {0}
-            )
-            AND NOT EXISTS (
-		            SELECT 1
-		            FROM tmt.t_tmt_project_task_tracking trk
-		            WHERE trk.project_task_id = t.project_task_id
-		              AND trk.create_by = {0}
-	            )
-            ORDER BY 
-                CASE t.priority 
-                    WHEN 'High' THEN 1 
-                    WHEN 'Medium' THEN 2 
-                    WHEN 'Low' THEN 3 
-                    ELSE 4 
-                END,
-                t.end_date";
+	// Function to get pending tasks - Cross-database compatible using LINQ
+	public async Task<List<PendingTaskDto>> GetPendingTasksAsync(string userId)
+	{
+		var query = from task in ProjectTasks
+					join header in ProjectHeaders on task.ProjectHeaderId equals header.ProjectHeaderId
+					join customer in Customers on header.CustomerId equals customer.CustomerId into custGroup
+					from cust in custGroup.DefaultIfEmpty()
+					join user in Users on task.CreateBy equals user.UserId into userGroup
+					from u in userGroup.DefaultIfEmpty()
+					where header.IsActive == "YES"
+						&& task.TaskStatus != "close"
+						&& ProjectTaskMembers.Any(m => m.ProjectTaskId == task.ProjectTaskId && m.UserId == userId)
+						&& !ProjectTaskTrackings.Any(t => t.ProjectTaskId == task.ProjectTaskId && t.CreateBy == userId)
+					select new PendingTaskDto
+					{
+						ProjectTaskId = task.ProjectTaskId,
+						TaskNo = task.TaskNo,
+						TaskName = task.TaskName,
+						TaskStatus = task.TaskStatus,
+						TaskDescription = task.TaskDescription,
+						StartDate = task.StartDate.Date,
+						EndDate = task.EndDate.Date,
+						EndDateExtend = task.EndDateExtend.HasValue ? task.EndDateExtend.Value.Date : (DateTime?)null,
+						Priority = task.Priority,
+						PriorityOrder = task.Priority == "High" ? 1 : 
+									   task.Priority == "Medium" ? 2 : 
+									   task.Priority == "Low" ? 3 : 4,
+						Manday = task.Manday,
+						IssueType = task.IssueType,
+						Remark = task.Remark,
+						ProjectHeaderId = header.ProjectHeaderId,
+						ProjectNo = header.ProjectNo,
+						ProjectName = header.ProjectName,
+						ProjectType = header.ProjectType,
+						ApplicationType = header.ApplicationType,
+						CustomerName = cust != null ? cust.CustomerName : null,
+						CreateBy = u != null ? u.FirstName + " " + u.LastName : null,
+						CreateDate = task.CreateDate,
+						UpdateBy = task.UpdateBy,
+						UpdateDate = task.UpdateDate
+					};
 
-        return await Database.SqlQueryRaw<PendingTaskDto>(sql, userId).ToListAsync();
-    }
+		var result = await query
+			.OrderBy(t => t.PriorityOrder)
+			.ThenBy(t => t.EndDate)
+			.ToListAsync();
+
+		return result;
+	}
 }

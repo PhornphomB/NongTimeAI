@@ -45,6 +45,7 @@ public class TaskNotificationService : ITaskNotificationService
                 ProjectName = t.ProjectName ?? "ไม่ระบุโปรเจกต์",
                 Priority = t.Priority ?? "Medium",
                 IssueType = t.IssueType ?? "Other",
+                StartDate = t.StartDate,
                 EndDate = t.EndDateExtend ?? t.EndDate
             }).ToList();
         }
@@ -116,7 +117,7 @@ public class TaskNotificationService : ITaskNotificationService
         string userId,
         string lineUserId,
         TimesheetEntry entry,
-        long projectTaskId)
+        int projectTaskId)
     {
         try
         {

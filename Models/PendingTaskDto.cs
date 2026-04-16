@@ -2,7 +2,7 @@ namespace NongTimeAI.Models;
 
 public class PendingTaskDto
 {
-    public long ProjectTaskId { get; set; }
+    public int ProjectTaskId { get; set; }
     public string? TaskNo { get; set; }
     public string? TaskName { get; set; }
     public string? TaskStatus { get; set; }
@@ -15,7 +15,7 @@ public class PendingTaskDto
     public decimal? Manday { get; set; }
     public string? IssueType { get; set; }
     public string? Remark { get; set; }
-    public long ProjectHeaderId { get; set; }
+    public int ProjectHeaderId { get; set; }
     public string? ProjectNo { get; set; }
     public string? ProjectName { get; set; }
     public string? ProjectType { get; set; }

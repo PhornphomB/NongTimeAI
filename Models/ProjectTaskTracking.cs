@@ -10,13 +10,13 @@ public class ProjectTaskTracking
     [Key]
     [Column("project_task_tracking_id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)] // ✅ บอก EF Core ว่า DB จะสร้างค่าให้
-    public long ProjectTaskTrackingId { get; set; }
+    public int ProjectTaskTrackingId { get; set; }
 
     [Column("project_task_id")]
-    public long ProjectTaskId { get; set; }
+    public int ProjectTaskId { get; set; }
 
     [Column("project_header_id")]
-    public long ProjectHeaderId { get; set; }
+    public int ProjectHeaderId { get; set; }
 
     [Required]
     [Column("process_update")]

@@ -9,13 +9,13 @@ public class ProjectTaskMember
 {
     [Key]
     [Column("project_task_member_id")]
-    public long ProjectTaskMemberId { get; set; }
+    public int ProjectTaskMemberId { get; set; }
 
     [Column("project_task_id")]
-    public long ProjectTaskId { get; set; }
+    public int ProjectTaskId { get; set; }
 
     [Column("project_header_id")]
-    public long ProjectHeaderId { get; set; }
+    public int ProjectHeaderId { get; set; }
 
     [Column("user_id")]
     [MaxLength(40)]

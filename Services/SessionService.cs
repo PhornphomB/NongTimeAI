@@ -8,8 +8,8 @@ namespace NongTimeAI.Services;
 /// </summary>
 public interface ISessionService
 {
-    void SetSelectedTask(string lineUserId, long projectTaskId, string taskName);
-    (long? taskId, string? taskName) GetSelectedTask(string lineUserId);
+    void SetSelectedTask(string lineUserId, int projectTaskId, string taskName);
+    (int? taskId, string? taskName) GetSelectedTask(string lineUserId);
     void ClearSelectedTask(string lineUserId);
     bool HasSelectedTask(string lineUserId);
 
@@ -24,7 +24,7 @@ public class SessionService : ISessionService
     private readonly ConcurrentDictionary<string, TaskSession> _sessions = new();
     private readonly TimeSpan _sessionTimeout = TimeSpan.FromMinutes(30);
 
-    public void SetSelectedTask(string lineUserId, long projectTaskId, string taskName)
+    public void SetSelectedTask(string lineUserId, int projectTaskId, string taskName)
     {
         if (_sessions.TryGetValue(lineUserId, out var existingSession))
         {
@@ -44,7 +44,7 @@ public class SessionService : ISessionService
         }
     }
 
-    public (long? taskId, string? taskName) GetSelectedTask(string lineUserId)
+    public (int? taskId, string? taskName) GetSelectedTask(string lineUserId)
     {
         if (_sessions.TryGetValue(lineUserId, out var session))
         {
@@ -115,7 +115,7 @@ public class SessionService : ISessionService
 
     private class TaskSession
     {
-        public long ProjectTaskId { get; set; }
+        public int ProjectTaskId { get; set; }
         public string TaskName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public TimesheetEntry? PendingEntry { get; set; } // ✅ เพิ่ม: เก็บข้อมูล Timesheet ที่รอบันทึก

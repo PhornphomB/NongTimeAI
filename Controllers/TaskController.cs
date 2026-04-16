@@ -98,7 +98,7 @@ public class SaveTrackingRequest
 {
     public string UserId { get; set; } = string.Empty;
     public string LineUserId { get; set; } = string.Empty;
-    public long ProjectTaskId { get; set; }
+    public int ProjectTaskId { get; set; }
     public string Detail { get; set; } = string.Empty;
     public float Hours { get; set; }
     public string IssueType { get; set; } = "Other";

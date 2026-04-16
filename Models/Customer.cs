@@ -8,7 +8,7 @@ public class Customer
 {
     [Key]
     [Column("customer_id")]
-    public long CustomerId { get; set; }
+    public int CustomerId { get; set; }
 
     [Column("customer_code")]
     [MaxLength(40)]

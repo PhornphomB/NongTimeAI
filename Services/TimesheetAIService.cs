@@ -115,6 +115,15 @@ AI: {{""detail"": ""แก้ไขหน้า login"", ""hours"": 3.0, ""issue
 User: ""ทำการศึกษาการใช้งาน react mobile 2 ชม. วันนี้""
 AI: {{""detail"": ""ทำการศึกษาการใช้งาน react mobile"", ""hours"": 2.0, ""issue_type"": ""Training"", ""date"": null, ""is_complete"": true}}
 
+User: ""ศึกษาการทำงานด้วย User Define View Manager 5 ชม.""
+AI: {{""detail"": ""ศึกษาการทำงานด้วย User Define View Manager"", ""hours"": 5.0, ""issue_type"": ""Training"", ""date"": null, ""is_complete"": true}}
+
+User: ""เรียนรู้ Docker และ Kubernetes 3 ชม.""
+AI: {{""detail"": ""เรียนรู้ Docker และ Kubernetes"", ""hours"": 3.0, ""issue_type"": ""Training"", ""date"": null, ""is_complete"": true}}
+
+User: ""ดูเอกสาร API Documentation 2 ชม.""
+AI: {{""detail"": ""ดูเอกสาร API Documentation"", ""hours"": 2.0, ""issue_type"": ""Training"", ""date"": null, ""is_complete"": true}}
+
 User: ""ประชุมลูกค้า ชั่วโมงครึ่ง""
 AI: {{""detail"": ""ประชุมลูกค้า"", ""hours"": 1.5, ""issue_type"": ""Meeting"", ""date"": null, ""is_complete"": true}}
 
@@ -173,33 +182,49 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
         // สร้าง mapping แบบอัตโนมัติตามข้อมูลที่ได้จากฐานข้อมูล
         var keywordMappings = new Dictionary<string, List<string>>
         {
-            { "Bug", new List<string> { "แก้บั๊ก", "แก้ไข", "fix", "bug", "แก้", "บั๊ก" } },
-            { "Develop", new List<string> { "ทำ", "พัฒนา", "develop", "เขียน", "สร้าง", "code" } },
-            { "Meeting", new List<string> { "ประชุม", "meeting", "meet" } },
-            { "Training", new List<string> { "ฝึกอบรม", "training", "อบรม", "ศึกษา", "เรียนรู้", "workshop" } },
-            { "Support", new List<string> { "สนับสนุน", "support", "ช่วย", "ช่วยเหลือ" } },
-            { "Request", new List<string> { "ร้องขอ", "request", "ขอ" } },
-            { "Issue", new List<string> { "ปัญหา", "issue", "problem" } },
-            { "Error", new List<string> { "ข้อผิดพลาด", "error", "ผิดพลาด" } },
-            { "Other", new List<string> { "อื่นๆ", "other" } }
+            { "Bug", new List<string> { "แก้บั๊ก", "บั๊ก", "แก้ไข bug", "fix bug", "bug", "แก้", "ซ่อม", "แก้ปัญหา" } },
+            { "Develop", new List<string> { "ทำ", "พัฒนา", "develop", "development", "เขียน", "สร้าง", "code", "coding", "เพิ่ม", "ปรับปรุง", "update" } },
+            { "Meeting", new List<string> { "ประชุม", "meeting", "meet", "หารือ", "พูดคุย", "discussion" } },
+            { "Training", new List<string> { 
+                "ศึกษา", "ทำการศึกษา", "การศึกษา", "ฝึกอบรม", "training", "อบรม", 
+                "เรียนรู้", "workshop", "เรียน", "ดูเอกสาร", "อ่าน", "ทดสอบการใช้งาน", 
+                "ลองใช้", "ศึกษาการทำงาน", "ทดลอง", "research" 
+            } },
+            { "Support", new List<string> { "สนับสนุน", "support", "ช่วย", "ช่วยเหลือ", "ดูแล", "แนะนำ" } },
+            { "Request", new List<string> { "ร้องขอ", "request", "ขอ", "เสนอ" } },
+            { "Issue", new List<string> { "ปัญหา", "issue", "problem", "ติดปัญหา" } },
+            { "Error", new List<string> { "ข้อผิดพลาด", "error", "ผิดพลาด", "พลาด" } },
+            { "Other", new List<string> { "อื่นๆ", "other", "งานอื่น" } }
         };
+
+        // สร้าง mapping แบบละเอียด
+        mapping.AppendLine("**วิธีจับ issue_type จากคำสำคัญ:**");
+        mapping.AppendLine();
 
         foreach (var issueType in issueTypes)
         {
             if (keywordMappings.ContainsKey(issueType))
             {
                 var keywords = string.Join("\", \"", keywordMappings[issueType]);
-                mapping.AppendLine($"- \"{keywords}\" → {issueType}");
+                mapping.AppendLine($"**{issueType}:** ถ้าเจอคำว่า \"{keywords}\"");
             }
             else
             {
                 // ถ้าไม่มีใน mapping ให้ใช้ชื่อเดียวกัน
-                mapping.AppendLine($"- \"{issueType.ToLower()}\", \"{issueType}\" → {issueType}");
+                mapping.AppendLine($"**{issueType}:** ถ้าเจอคำว่า \"{issueType.ToLower()}\", \"{issueType}\"");
             }
         }
 
-        // เพิ่มรายการ issue types ที่ valid ท้ายสุด
-        mapping.AppendLine($"\n**รายการ issue_type ที่ใช้ได้เท่านั้น:**");
+        mapping.AppendLine();
+        mapping.AppendLine("**กฎพิเศษ:**");
+        mapping.AppendLine("- ถ้าเจอคำว่า \"ศึกษา\", \"ทำการศึกษา\", \"เรียนรู้\", \"อบรม\" → **Training**");
+        mapping.AppendLine("- ถ้าเจอคำว่า \"แก้บั๊ก\", \"บั๊ก\", \"fix\" → **Bug**");
+        mapping.AppendLine("- ถ้าเจอคำว่า \"พัฒนา\", \"เขียน\", \"สร้าง\" → **Develop**");
+        mapping.AppendLine("- ถ้าเจอคำว่า \"ประชุม\" → **Meeting**");
+        mapping.AppendLine("- ถ้าไม่แน่ใจหรือไม่มีคำสำคัญ → **Other**");
+
+        mapping.AppendLine();
+        mapping.AppendLine("**รายการ issue_type ที่ใช้ได้เท่านั้น:**");
         mapping.AppendLine(string.Join(", ", issueTypes));
 
         return mapping.ToString();
@@ -237,6 +262,7 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
 
     /// <summary>
     /// Pre-process ข้อความเพื่อแปลงรูปแบบวันที่และเวลาให้ชัดเจนก่อนส่งให้ AI
+    /// รองรับการเขียนวันแบบย่อและหลากหลายรูปแบบ เช่น วันพฤ., พฤ, พฤหัส, จ., อ., ฯลฯ
     /// </summary>
     private string PreprocessDateInMessage(string message)
     {
@@ -244,10 +270,18 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
         var thaiZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, thaiZone);
         var yesterday = now.AddDays(-1);
+        var twoDaysAgo = now.AddDays(-2);
 
         var processedMessage = message;
 
-        // ✅ แปลง "ครึ่งชั่วโมง", "ชั่วโมงครึ่ง", "30 นาที" เป็นตัวเลข
+        // ✅ แปลงเวลา - จัดการกรณีต่างๆ
+        // รองรับ "45 นาที" -> 0.75 ชม.
+        processedMessage = Regex.Replace(processedMessage, @"45\s*นาที", "0.75 ชม.", RegexOptions.IgnoreCase);
+
+        // รองรับ "15 นาที" -> 0.25 ชม.
+        processedMessage = Regex.Replace(processedMessage, @"15\s*นาที", "0.25 ชม.", RegexOptions.IgnoreCase);
+
+        // แปลง "ครึ่งชั่วโมง", "ชั่วโมงครึ่ง", "30 นาที" เป็นตัวเลข
         processedMessage = Regex.Replace(processedMessage, @"ครึ่ง\s*ชั่วโมง|ครึ่ง\s*ชม\.?", "0.5 ชม.", RegexOptions.IgnoreCase);
         processedMessage = Regex.Replace(processedMessage, @"(\d+)\s*ชั่วโมง\s*ครึ่ง|(\d+)\s*ชม\.?\s*ครึ่ง", m => 
         {
@@ -256,30 +290,80 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
         }, RegexOptions.IgnoreCase);
         processedMessage = Regex.Replace(processedMessage, @"30\s*นาที", "0.5 ชม.", RegexOptions.IgnoreCase);
 
-        // แปลง "ทำเมื่อวาน" / "เมื่อวาน" / "เมื่อวานนี้" เป็น วันที่ชัดเจน
+        // จัดการ "ชั่วโมง" "ชม." ให้เป็น Format เดียวกัน
+        processedMessage = Regex.Replace(processedMessage, @"ชั่วโมง", "ชม.", RegexOptions.IgnoreCase);
+
+        // ✅ แปลงวันที่ - เรียงจากคำยาวไปคำสั้น เพื่อป้องกัน Regex Match ผิด
         var patterns = new Dictionary<string, string>
         {
+            // เมื่อวาน (รองรับหลายรูปแบบ)
+            { @"\s*ทำ\s*เมื่อ\s*วาน\s*นี้\s*", $" วันที่ {yesterday:dd/MM/yyyy}" },
             { @"\s*ทำ\s*เมื่อ\s*วาน\s*", $" วันที่ {yesterday:dd/MM/yyyy}" },
             { @"\s*เมื่อ\s*วาน\s*นี้\s*", $" วันที่ {yesterday:dd/MM/yyyy}" },
             { @"\s*เมื่อ\s*วาน\s*", $" วันที่ {yesterday:dd/MM/yyyy}" },
+            { @"\s*มะ\s*วาน\s*", $" วันที่ {yesterday:dd/MM/yyyy}" },
 
-            // แปลงวันในสัปดาห์
+            // วันนี้
+            { @"\s*วัน\s*นี้\s*", $" วันที่ {now:dd/MM/yyyy}" },
+
+            // วันก่อน (2 วันที่แล้ว)
+            { @"\s*วัน\s*ก่อน\s*", $" วันที่ {twoDaysAgo:dd/MM/yyyy}" },
+
+            // วันจันทร์ (รองรับ: วันจันทร์, จันทร์, วันจ., จ., จันทร์ที่แล้ว)
+            { @"\s*วัน\s*จันทร์\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
             { @"\s*วัน\s*จันทร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*อังคาร\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*พุธ\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*พฤหัสบดี\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*ศุกร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*เสาร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
-            { @"\s*วัน\s*อาทิตย์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*จ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
+            { @"\s*จันทร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
+            { @"\s*จ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
 
-            // แปลงชื่อวันโดยไม่มี "วัน" นำหน้า
-            { @"\s*จันทร์\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Monday):dd/MM/yyyy}" },
-            { @"\s*อังคาร\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
-            { @"\s*พุธ\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
-            { @"\s*พฤหัสบดี\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
-            { @"\s*ศุกร์\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
-            { @"\s*เสาร์\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
-            { @"\s*อาทิตย์\s*$", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" }
+            // วันอังคาร (รองรับ: วันอังคาร, อังคาร, วันอ., อ., ต.)
+            { @"\s*วัน\s*อังคาร\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*อังคาร\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*อ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+            { @"\s*อังคาร\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+            { @"\s*อ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+            { @"\s*ต\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Tuesday):dd/MM/yyyy}" },
+
+            // วันพุธ (รองรับ: วันพุธ, พุธ, วันพ., พ.)
+            { @"\s*วัน\s*พุธ\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พุธ\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
+            { @"\s*พุธ\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Wednesday):dd/MM/yyyy}" },
+
+            // วันพฤหัสบดี (รองรับ: วันพฤหัสบดี, พฤหัสบดี, วันพฤหัส, พฤหัส, วันพฤ., พฤ., พฤ, พฤหัสฯ)
+            { @"\s*วัน\s*พฤหัสบดี\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พฤหัสบดี\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พฤหัสฯ\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พฤหัส\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พฤ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*พฤ\s+", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy} " }, // พฤ + space
+            { @"\s*พฤหัสบดี\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*พฤหัสฯ\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*พฤหัส\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+            { @"\s*พฤ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Thursday):dd/MM/yyyy}" },
+
+            // วันศุกร์ (รองรับ: วันศุกร์, ศุกร์, วันศ., ศ.)
+            { @"\s*วัน\s*ศุกร์\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*ศุกร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*ศ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
+            { @"\s*ศุกร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
+            { @"\s*ศ\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Friday):dd/MM/yyyy}" },
+
+            // วันเสาร์ (รองรับ: วันเสาร์, เสาร์, วันส., ส.)
+            { @"\s*วัน\s*เสาร์\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*เสาร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*ส\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
+            { @"\s*เสาร์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
+            { @"\s*ส\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Saturday):dd/MM/yyyy}" },
+
+            // วันอาทิตย์ (รองรับ: วันอาทิตย์, อาทิตย์, วันอา., อา., อท.)
+            { @"\s*วัน\s*อาทิตย์\s*ที่\s*แล้ว\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*อาทิตย์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*อา\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*วัน\s*อท\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*อาทิตย์\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*อา\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" },
+            { @"\s*อท\.\s*", $" วันที่ {GetLastWeekday(DayOfWeek.Sunday):dd/MM/yyyy}" }
         };
 
         foreach (var pattern in patterns)
@@ -307,6 +391,77 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
         return now.AddDays(-daysUntilTarget).Date;
     }
 
+    /// <summary>
+    /// Pre-detect Issue Type จาก keywords เพื่อช่วย AI ตัดสินใจ
+    /// </summary>
+    private string? PreDetectIssueType(string message)
+    {
+        var lowerMessage = message.ToLower();
+
+        // Training keywords (เรียงจากชัดเจน → กำกวม)
+        var trainingKeywords = new[] { 
+            "ศึกษา", "ทำการศึกษา", "การศึกษา", "ศึกษาการทำงาน",
+            "เรียนรู้", "ดูเอกสาร", "อ่านเอกสาร", "ทดลอง", "ทดสอบการใช้งาน",
+            "ฝึกอบรม", "อบรม", "เรียน", "workshop", "training", "research"
+        };
+
+        foreach (var keyword in trainingKeywords)
+        {
+            if (lowerMessage.Contains(keyword.ToLower()))
+            {
+                _logger.LogDebug("🎯 Matched Training keyword: {Keyword}", keyword);
+                return "Training";
+            }
+        }
+
+        // Bug keywords
+        var bugKeywords = new[] { "แก้บั๊ก", "บั๊ก", "fix bug", "bug", "ซ่อม", "แก้ปัญหา" };
+        foreach (var keyword in bugKeywords)
+        {
+            if (lowerMessage.Contains(keyword.ToLower()))
+            {
+                _logger.LogDebug("🎯 Matched Bug keyword: {Keyword}", keyword);
+                return "Bug";
+            }
+        }
+
+        // Meeting keywords
+        var meetingKeywords = new[] { "ประชุม", "meeting", "หารือ", "พูดคุย", "discussion" };
+        foreach (var keyword in meetingKeywords)
+        {
+            if (lowerMessage.Contains(keyword.ToLower()))
+            {
+                _logger.LogDebug("🎯 Matched Meeting keyword: {Keyword}", keyword);
+                return "Meeting";
+            }
+        }
+
+        // Develop keywords
+        var developKeywords = new[] { "พัฒนา", "develop", "เขียน", "สร้าง", "code", "coding" };
+        foreach (var keyword in developKeywords)
+        {
+            if (lowerMessage.Contains(keyword.ToLower()))
+            {
+                _logger.LogDebug("🎯 Matched Develop keyword: {Keyword}", keyword);
+                return "Develop";
+            }
+        }
+
+        // Support keywords
+        var supportKeywords = new[] { "สนับสนุน", "support", "ช่วย", "ช่วยเหลือ", "ดูแล" };
+        foreach (var keyword in supportKeywords)
+        {
+            if (lowerMessage.Contains(keyword.ToLower()))
+            {
+                _logger.LogDebug("🎯 Matched Support keyword: {Keyword}", keyword);
+                return "Support";
+            }
+        }
+
+        _logger.LogDebug("❓ No issue type keyword matched");
+        return null;
+    }
+
     public TimesheetAIService(
         IConfiguration configuration, 
         ILogger<TimesheetAIService> logger,
@@ -317,11 +472,15 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
         _ollamaBaseUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
         _modelName = configuration["Ollama:Model"] ?? "llama3.2";
 
+        // ✅ เพิ่ม Timeout เป็น 5 นาที สำหรับ AI ที่ประมวลผลช้า
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(_ollamaBaseUrl),
-            Timeout = TimeSpan.FromMinutes(2)
+            Timeout = TimeSpan.FromMinutes(5) // เปลี่ยนจาก 2 → 5 นาที (300 วินาที)
         };
+
+        _logger.LogInformation("🤖 TimesheetAIService initialized: BaseUrl={BaseUrl}, Model={Model}, Timeout={Timeout}s", 
+            _ollamaBaseUrl, _modelName, _httpClient.Timeout.TotalSeconds);
     }
 
     public async Task<TimesheetResponse> ProcessTimesheetMessageAsync(string userMessage)
@@ -333,9 +492,22 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
             _logger.LogInformation("📝 Original message: {Original}", userMessage);
             _logger.LogInformation("📝 Processed message: {Processed}", processedMessage);
 
+            // ✅ Pre-detect Issue Type จาก keywords เพื่อช่วย AI
+            var preDetectedIssueType = PreDetectIssueType(userMessage);
+            if (!string.IsNullOrEmpty(preDetectedIssueType))
+            {
+                _logger.LogInformation("🎯 Pre-detected issue type: {IssueType}", preDetectedIssueType);
+            }
+
             // ✅ ใช้ Dynamic Prompt ที่คำนวณวันที่แบบ Real-time และดึง issue types จากฐานข้อมูล
             var systemPrompt = await GetExtractionSystemPromptAsync();
-            var prompt = $"{systemPrompt}\n\nUser Message: '{processedMessage}'";
+
+            // ✅ ถ้า Pre-detect ได้ ให้เพิ่ม hint ใน prompt
+            var hintMessage = !string.IsNullOrEmpty(preDetectedIssueType)
+                ? $"\n\n**IMPORTANT HINT:** The message contains keyword that strongly suggests issue_type should be \"{preDetectedIssueType}\". Please use this unless there is a clear reason not to."
+                : "";
+
+            var prompt = $"{systemPrompt}{hintMessage}\n\nUser Message: '{processedMessage}'";
 
             var ollamaRequest = new OllamaRequest
             {
@@ -344,7 +516,7 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
                 Stream = false,
                 Options = new OllamaOptions
                 {
-                    Temperature = 0.1,
+                    Temperature = 0.0,  // ✅ เปลี่ยนเป็น 0 เพื่อให้ deterministic
                     TopP = 0.1
                 }
             };
@@ -397,6 +569,14 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
             _logger.LogInformation("📊 Parsed Entry: Detail={Detail}, Hours={Hours}, IssueType={IssueType}, Date={Date}, IsComplete={IsComplete}",
                 timesheetEntry.Detail, timesheetEntry.Hours, timesheetEntry.IssueType, 
                 timesheetEntry.Date?.ToString("yyyy-MM-dd") ?? "null", timesheetEntry.IsComplete);
+
+            // ✅ ถ้า Pre-detect ได้แต่ AI ตอบมาเป็น "Other" ให้บังคับใช้ Pre-detected Issue Type
+            if (!string.IsNullOrEmpty(preDetectedIssueType) && 
+                timesheetEntry.IssueType == "Other")
+            {
+                _logger.LogWarning("⚠️ AI returned 'Other' but we pre-detected '{PreDetected}', overriding...", preDetectedIssueType);
+                timesheetEntry.IssueType = preDetectedIssueType;
+            }
 
             // ✅ ตรวจสอบว่า issue_type ที่ได้มาตรงกับรายการในฐานข้อมูลหรือไม่
             var validIssueTypes = await GetIssueTypesAsync();

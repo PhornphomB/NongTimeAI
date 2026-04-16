@@ -3,6 +3,7 @@ using DotNetEnv;
 using Line.Messaging;
 using Microsoft.EntityFrameworkCore;
 using NongTimeAI.Data;
+using NongTimeAI.Enums;
 using NongTimeAI.Services;
 using Scalar.AspNetCore;
 
@@ -14,13 +15,34 @@ var builder = WebApplication.CreateBuilder(args);
 // Override configuration with environment variables
 builder.Configuration.AddEnvironmentVariables();
 
-// Database Connection String
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? BuildConnectionStringFromEnv();
+// ตรวจสอบ Database Provider ที่เลือก
+var databaseProviderString = builder.Configuration["Database:Provider"] 
+    ?? Environment.GetEnvironmentVariable("DATABASE_PROVIDER") 
+    ?? "PostgreSQL";
 
-// Add DbContext
+if (!Enum.TryParse<DatabaseProvider>(databaseProviderString, true, out var databaseProvider))
+{
+    throw new InvalidOperationException($"Invalid Database Provider: {databaseProviderString}. Supported providers: PostgreSQL, SqlServer");
+}
+
+// สร้าง Connection String ตาม Provider ที่เลือก
+var connectionString = GetConnectionString(builder.Configuration, databaseProvider);
+
+// Add DbContext with selected provider
 builder.Services.AddDbContext<TimesheetDbContext>(options =>
-    options.UseNpgsql(connectionString));
+{
+    switch (databaseProvider)
+    {
+        case DatabaseProvider.PostgreSQL:
+            options.UseNpgsql(connectionString);
+            break;
+        case DatabaseProvider.SqlServer:
+            options.UseSqlServer(connectionString);
+            break;
+        default:
+            throw new InvalidOperationException($"Unsupported Database Provider: {databaseProvider}");
+    }
+});
 
 // Add Controllers
 builder.Services.AddControllers();
@@ -83,7 +105,8 @@ app.MapControllers();
 
 // Startup message
 app.Logger.LogInformation("🚀 NongTimeAI API Started!");
-app.Logger.LogInformation("📊 Database: {ConnectionString}", MaskConnectionString(connectionString));
+app.Logger.LogInformation("📊 Database Provider: {Provider}", databaseProvider);
+app.Logger.LogInformation("📊 Database Connection: {ConnectionString}", MaskConnectionString(connectionString));
 app.Logger.LogInformation("🤖 Ollama: {OllamaUrl}", 
     builder.Configuration["Ollama:BaseUrl"] ?? Environment.GetEnvironmentVariable("OLLAMA_BASE_URL"));
 app.Logger.LogInformation("💬 LINE Bot: Configured");
@@ -91,7 +114,19 @@ app.Logger.LogInformation("💬 LINE Bot: Configured");
 app.Run();
 
 // Helper functions
-string BuildConnectionStringFromEnv()
+string GetConnectionString(IConfiguration configuration, DatabaseProvider provider)
+{
+    return provider switch
+    {
+        DatabaseProvider.PostgreSQL => configuration.GetConnectionString("PostgreSQL") 
+            ?? BuildPostgreSQLConnectionStringFromEnv(),
+        DatabaseProvider.SqlServer => configuration.GetConnectionString("SqlServer") 
+            ?? BuildSqlServerConnectionStringFromEnv(),
+        _ => throw new InvalidOperationException($"Unsupported Database Provider: {provider}")
+    };
+}
+
+string BuildPostgreSQLConnectionStringFromEnv()
 {
     var host = Environment.GetEnvironmentVariable("DATABASE_HOST") ?? "localhost";
     var port = Environment.GetEnvironmentVariable("DATABASE_PORT") ?? "5432";
@@ -100,6 +135,17 @@ string BuildConnectionStringFromEnv()
     var password = Environment.GetEnvironmentVariable("DATABASE_PASSWORD") ?? "postgres";
 
     return $"Host={host};Port={port};Database={database};Username={username};Password={password}";
+}
+
+string BuildSqlServerConnectionStringFromEnv()
+{
+    var host = Environment.GetEnvironmentVariable("SQLSERVER_HOST") ?? "localhost";
+    var port = Environment.GetEnvironmentVariable("SQLSERVER_PORT") ?? "1433";
+    var database = Environment.GetEnvironmentVariable("SQLSERVER_DATABASE") ?? "NongTimeAI";
+    var username = Environment.GetEnvironmentVariable("SQLSERVER_USER") ?? "sa";
+    var password = Environment.GetEnvironmentVariable("SQLSERVER_PASSWORD") ?? "YourPassword123";
+
+    return $"Server={host},{port};Database={database};User Id={username};Password={password};TrustServerCertificate=True;";
 }
 
 string MaskConnectionString(string connString)

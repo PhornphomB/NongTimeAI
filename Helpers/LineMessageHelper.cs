@@ -8,6 +8,58 @@ namespace NongTimeAI.Helpers;
 public static class LineMessageHelper
 {
     /// <summary>
+    /// สร้าง Quick Reply สำหรับยืนยันการบันทึก Timesheet หลังเลือก Task
+    /// แสดง Issue Type ทั้งหมด + ปุ่มบันทึก (ที่แนะนำ) และยกเลิก
+    /// </summary>
+    public static QuickReply GetConfirmTimesheetQuickReply(string suggestedIssueType, List<string> allIssueTypes)
+    {
+        var items = new List<QuickReplyButtonObject>();
+
+        var iconMap = new Dictionary<string, string>
+        {
+            { "Bug", "🐛" },
+            { "Develop", "💻" },
+            { "Meeting", "👥" },
+            { "Training", "📚" },
+            { "Support", "🆘" },
+            { "Request", "📮" },
+            { "Issue", "⚠️" },
+            { "Error", "❌" },
+            { "Other", "📌" }
+        };
+
+        var icon = iconMap.ContainsKey(suggestedIssueType) ? iconMap[suggestedIssueType] : "📋";
+
+        // ปุ่มแรก: บันทึกด้วย Issue Type ที่แนะนำ (เน้นๆ)
+        items.Add(new QuickReplyButtonObject(
+            new MessageTemplateAction($"✅ บันทึก ({icon} {suggestedIssueType})", $"CONFIRM_SAVE:{suggestedIssueType}")
+        ));
+
+        // แสดง Issue Type ทั้งหมด (สูงสุด 11 items + ปุ่มบันทึก 1 + ยกเลิก 1 = 13 total)
+        var maxIssueTypes = Math.Min(allIssueTypes.Count, 11);
+
+        foreach (var issueType in allIssueTypes.Take(maxIssueTypes))
+        {
+            // ข้ามถ้าเป็น Issue Type ที่แนะนำ (เพราะมีปุ่มแล้ว)
+            if (issueType == suggestedIssueType)
+                continue;
+
+            var issueIcon = iconMap.ContainsKey(issueType) ? iconMap[issueType] : "📋";
+
+            items.Add(new QuickReplyButtonObject(
+                new MessageTemplateAction($"{issueIcon} {issueType}", $"ISSUE_TYPE:{issueType}")
+            ));
+        }
+
+        // ปุ่มสุดท้าย: ยกเลิก
+        items.Add(new QuickReplyButtonObject(
+            new MessageTemplateAction("❌ ยกเลิก", "CANCEL_SAVE")
+        ));
+
+        return new QuickReply { Items = items };
+    }
+
+    /// <summary>
     /// สร้าง Quick Reply สำหรับเลือก Issue Type
     /// </summary>
     public static QuickReply GetIssueTypeQuickReply(List<string> issueTypes)
@@ -196,9 +248,19 @@ public static class LineMessageHelper
                     ? "🚨 วันนี้!"
                     : $"⏰ {daysLeft} วัน";
 
+            // แสดง Start Date และ End Date
+            var startDateText = task.StartDate.HasValue 
+                ? task.StartDate.Value.ToString("dd/MM/yyyy") 
+                : "ไม่ระบุ";
+
+            var endDateText = task.EndDate.HasValue 
+                ? task.EndDate.Value.ToString("dd/MM/yyyy") 
+                : "ไม่ระบุ";
+
             result += $"\n{count}. {task.TaskName}\n";
             result += $"   📁 {task.ProjectName}\n";
-            result += $"   🏷️ {task.IssueType} | {dueDateText}\n";
+            result += $"   🏷️ {task.IssueType}\n";
+            result += $"   📅 {startDateText} - {endDateText} | {dueDateText}\n";
         }
 
         if (tasks.Count > maxItems)
@@ -220,10 +282,11 @@ public static class LineMessageHelper
 
 public class TaskItem
 {
-    public long TaskId { get; set; }
+    public int TaskId { get; set; }
     public string TaskName { get; set; } = string.Empty;
     public string ProjectName { get; set; } = string.Empty;
     public string Priority { get; set; } = "Medium";
     public string IssueType { get; set; } = "Other";
+    public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 }
