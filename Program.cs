@@ -44,6 +44,9 @@ builder.Services.AddDbContext<TimesheetDbContext>(options =>
     }
 });
 
+// Register DatabaseProvider as Singleton
+builder.Services.AddSingleton(new DatabaseProviderService(databaseProvider));
+
 // Add Controllers
 builder.Services.AddControllers();
 

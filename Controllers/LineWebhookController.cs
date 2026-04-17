@@ -705,7 +705,8 @@ public class LineWebhookController : ControllerBase
         helpMessage += "• แก้บั๊ก login 2 ชม.\n";
         helpMessage += "• ประชุมทีม 1.5 ชม. เมื่อวาน\n";
         helpMessage += "• พัฒนา API 3 ชม. 13/01\n";
-        helpMessage += "• ศึกษา PostgreSQL 8 ชม. วันจันทร์\n\n";
+        helpMessage += "• ศึกษา PostgreSQL 8 ชม. วันจันทร์\n";
+        helpMessage += "• แก้ไข UI 2 ชม. 05/02/2026\n\n";
         helpMessage += "🎯 **ขั้นตอนการบันทึก:**\n";
         helpMessage += "1. พิมพ์ข้อความตามตัวอย่าง\n";
         helpMessage += "2. ระบบจะให้เลือกงานที่จะบันทึก\n";
@@ -715,7 +716,8 @@ public class LineWebhookController : ControllerBase
         helpMessage += "🗓️ **รูปแบบวันที่ที่รองรับ:**\n";
         helpMessage += "• วันนี้ (ไม่ต้องระบุ)\n";
         helpMessage += "• เมื่อวาน\n";
-        helpMessage += "• 13/01 หรือ 13/1\n";
+        helpMessage += "• 13/01 หรือ 13/1 (วัน/เดือน)\n";
+        helpMessage += "• 05/02/2026 (วัน/เดือน/ปี)\n";
         helpMessage += "• 13 ม.ค. หรือ 13 มกราคม\n";
         helpMessage += "• วันจันทร์, วันอังคาร, ฯลฯ\n\n";
         helpMessage += $"🏷️ **ประเภทงานที่รองรับ:**\n{issueTypesText}\n\n";
@@ -799,20 +801,40 @@ public class LineWebhookController : ControllerBase
     {
         try
         {
+            // ✅ รับ DatabaseProvider จาก DI
+            var databaseProviderService = HttpContext.RequestServices.GetRequiredService<DatabaseProviderService>();
+            var databaseProvider = databaseProviderService.Provider;
+
             // ✅ ใช้เวลาท้องถิ่น (เอเชีย/กรุงเทพ GMT+7)
-            var bangkokTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); // GMT+7
+            var bangkokTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
             var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, bangkokTimeZone);
-            var todayLocal = nowLocal.Date; // วันนี้ 00:00:00 (เวลาท้องถิ่น)
-            var tomorrowLocal = todayLocal.AddDays(1); // พรุ่งนี้ 00:00:00 (เวลาท้องถิ่น)
+            var todayLocal = nowLocal.Date;
+            var tomorrowLocal = todayLocal.AddDays(1);
 
-            // แปลงเป็น UTC สำหรับ query
-            var today = TimeZoneInfo.ConvertTimeToUtc(todayLocal, bangkokTimeZone);
-            var tomorrow = TimeZoneInfo.ConvertTimeToUtc(tomorrowLocal, bangkokTimeZone);
+            DateTime today, tomorrow;
 
-            // 🔍 Debug logging
-            _logger.LogInformation("📅 Today Tasks Query - UserId: {UserId}", userId);
-            _logger.LogInformation("   Today (Local): {TodayLocal} -> UTC: {TodayUtc}", todayLocal, today);
-            _logger.LogInformation("   Tomorrow (Local): {TomorrowLocal} -> UTC: {TomorrowUtc}", tomorrowLocal, tomorrow);
+            if (databaseProvider == Enums.DatabaseProvider.PostgreSQL)
+            {
+                // PostgreSQL: แปลงเป็น UTC สำหรับ Query
+                today = TimeZoneInfo.ConvertTimeToUtc(todayLocal, bangkokTimeZone);
+                tomorrow = TimeZoneInfo.ConvertTimeToUtc(tomorrowLocal, bangkokTimeZone);
+
+                _logger.LogInformation("📅 [PostgreSQL] Today Tasks Query - UserId: {UserId}", userId);
+                _logger.LogInformation("   Today: Local={TodayLocal:yyyy-MM-dd} -> UTC={TodayUtc:yyyy-MM-dd HH:mm:ss}", 
+                    todayLocal, today);
+                _logger.LogInformation("   Tomorrow: Local={TomorrowLocal:yyyy-MM-dd} -> UTC={TomorrowUtc:yyyy-MM-dd HH:mm:ss}", 
+                    tomorrowLocal, tomorrow);
+            }
+            else // SQL Server
+            {
+                // SQL Server: ใช้ Local Time ตรงๆ
+                today = DateTime.SpecifyKind(todayLocal, DateTimeKind.Unspecified);
+                tomorrow = DateTime.SpecifyKind(tomorrowLocal, DateTimeKind.Unspecified);
+
+                _logger.LogInformation("📅 [SQL Server] Today Tasks Query - UserId: {UserId}", userId);
+                _logger.LogInformation("   Today: {TodayLocal:yyyy-MM-dd HH:mm:ss}", today);
+                _logger.LogInformation("   Tomorrow: {TomorrowLocal:yyyy-MM-dd HH:mm:ss}", tomorrow);
+            }
 
             var trackings = await _dbContext.ProjectTaskTrackings
                 .Where(t => t.Assignee == userId && 
@@ -826,7 +848,8 @@ public class LineWebhookController : ControllerBase
             {
                 foreach (var t in trackings)
                 {
-                    _logger.LogInformation("   - ActualDate: {Date}, Detail: {Detail}", t.ActualDate, t.ProcessUpdate);
+                    _logger.LogInformation("   - ActualDate: {Date:yyyy-MM-dd HH:mm:ss} Kind={Kind}, Detail: {Detail}", 
+                        t.ActualDate, t.ActualDate.Kind, t.ProcessUpdate);
                 }
             }
 
@@ -944,9 +967,11 @@ public class LineWebhookController : ControllerBase
                 message += "• \"แก้บั๊ก login 2 ชม.\" (วันนี้)\n";
                 message += "• \"ประชุมทีม 1.5 ชม. เมื่อวาน\"\n";
                 message += "• \"ศึกษา PostgreSQL 8 ชม. 13/01\"\n";
-                message += "• \"พัฒนา API 5 ชม. วันจันทร์\"\n\n";
+                message += "• \"พัฒนา API 5 ชม. วันจันทร์\"\n";
+                message += "• \"แก้ไข UI 3 ชม. 05/02/2026\"\n\n";
                 message += "🏷️ ประเภทงาน: Bug, Develop, Meeting,\nTraining, Support, Request, Other\n\n";
-                message += "🗓️ วันที่: ไม่ระบุ = วันนี้ | รองรับย้อนหลัง";
+                message += "📅 วันที่: วัน/เดือน/ปี (05/02/2026)\n";
+                message += "   ไม่ระบุ = วันนี้ | รองรับย้อนหลัง";
 
                 var textWithQuickReply = LineMessageHelper.CreateTextWithQuickReply(message);
                 await _lineClient.ReplyMessageAsync(replyToken, new List<ISendMessage> { textWithQuickReply });

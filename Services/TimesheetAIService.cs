@@ -58,9 +58,17 @@ public class TimesheetAIService : ITimesheetAIService
 - ""เมื่อวาน"" / ""ทำเมื่อวาน"" / ""เมื่อวานนี้"" → {YESTERDAY_DATE}
 - ""13/04/{CURRENT_YEAR}"" หรือ ""13/4/{CURRENT_YEAR}"" → ""{CURRENT_YEAR}-04-13""
 - ""13/04"" หรือ ""13/4"" → ""{CURRENT_YEAR}-04-13""
+- ""05/02"" → ""{CURRENT_YEAR}-02-05"" (วัน 05 เดือน 02, ไม่ใช่ เดือน 05 วัน 02!)
+- ""05/02/2026"" → ""2026-02-05"" (วัน 05 เดือน 02 ปี 2026)
 - ""13 เม.ย."" / ""13 เมษายน"" / ""13 เมย"" → ""{CURRENT_YEAR}-04-13""
 - ""วันจันทร์"" / ""จันทร์"" → จันทร์สัปดาห์ที่ผ่านมา (คำนวณจากวันนี้)
 - ""วันอังคาร"" / ""อังคาร"" → อังคารสัปดาห์ที่ผ่านมา (คำนวณจากวันนี้)
+
+**สำคัญมาก:** รูปแบบวันที่เป็น dd/MM/yyyy (วัน/เดือน/ปี) ไม่ใช่ MM/dd/yyyy!
+ตัวอย่าง:
+- ""05/02/2026"" = วันที่ 5 กุมภาพันธ์ 2026 → ""2026-02-05""
+- ""31/12/2026"" = วันที่ 31 ธันวาคม 2026 → ""2026-12-31""
+- ""15/08"" = วันที่ 15 สิงหาคม → ""{CURRENT_YEAR}-08-15""
 
 **หมายเหตุ:** ถ้าพบคำว่า ""ทำเมื่อวาน"" ให้แยกเป็น:
   - issue_type ตามบริบท (เช่น ""แก้ไข"" → Develop)
@@ -108,6 +116,12 @@ AI: {{""detail"": ""พัฒนา API Customer"", ""hours"": 5.0, ""issue_type
 
 User: ""ทำการแก้ไขชื่อและ email ให้ลูกค้า 2 ชม. ทำเมื่อวาน""
 AI: {{""detail"": ""ทำการแก้ไขชื่อและ email ให้ลูกค้า"", ""hours"": 2.0, ""issue_type"": ""Develop"", ""date"": ""{YESTERDAY_DATE}"", ""is_complete"": true}}
+
+User: ""แก้ไขชื่อ และอีเมล์ให้ awc แล้ว 2 ชม. 05/02/2026""
+AI: {{""detail"": ""แก้ไขชื่อ และอีเมล์ให้ awc"", ""hours"": 2.0, ""issue_type"": ""Develop"", ""date"": ""2026-02-05"", ""is_complete"": true}}
+
+User: ""แก้บั๊ก login 3 ชม. 15/08""
+AI: {{""detail"": ""แก้บั๊ก login"", ""hours"": 3.0, ""issue_type"": ""Bug"", ""date"": ""{CURRENT_YEAR}-08-15"", ""is_complete"": true}}
 
 User: ""แก้ไขหน้า login 3 ชม. ประเภท bug เมื่อวาน""
 AI: {{""detail"": ""แก้ไขหน้า login"", ""hours"": 3.0, ""issue_type"": ""Bug"", ""date"": ""{YESTERDAY_DATE}"", ""is_complete"": true}}
@@ -552,6 +566,7 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
             var cleanedJson = CleanJsonResponse(ollamaResponse.Response);
 
             _logger.LogInformation("🤖 AI Response (cleaned): {Json}", cleanedJson);
+            _logger.LogInformation("📄 AI Response (original): {Original}", ollamaResponse.Response);
 
             // Parse JSON manually เพื่อจัดการ date field ที่อาจเป็น string "YYYY-MM-DD" หรือ null
             var timesheetEntry = ParseTimesheetEntry(cleanedJson);
@@ -741,11 +756,24 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
                     var dateStr = dateProp.GetString();
                     if (!string.IsNullOrWhiteSpace(dateStr))
                     {
-                        // Parse รูปแบบ YYYY-MM-DD
-                        if (DateTime.TryParse(dateStr, out var parsedDate))
+                        // Parse รูปแบบ YYYY-MM-DD (จาก AI) หรือ dd/MM/yyyy (จาก User)
+                        // ใช้ InvariantCulture สำหรับ YYYY-MM-DD และ Thai Culture สำหรับ dd/MM/yyyy
+                        var thaiCulture = new System.Globalization.CultureInfo("th-TH");
+                        var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
+
+                        DateTime parsedDate;
+
+                        // ลองใช้ InvariantCulture ก่อน (YYYY-MM-DD)
+                        if (DateTime.TryParse(dateStr, invariantCulture, System.Globalization.DateTimeStyles.None, out parsedDate))
                         {
                             entry.Date = parsedDate.Date;
-                            _logger.LogDebug("✅ Parsed date: {DateStr} -> {Date:yyyy-MM-dd}", dateStr, entry.Date.Value);
+                            _logger.LogInformation("✅ Parsed date (Invariant): {DateStr} -> {Date:yyyy-MM-dd}", dateStr, entry.Date.Value);
+                        }
+                        // ถ้าไม่ได้ ลองใช้ Thai Culture (dd/MM/yyyy)
+                        else if (DateTime.TryParse(dateStr, thaiCulture, System.Globalization.DateTimeStyles.None, out parsedDate))
+                        {
+                            entry.Date = parsedDate.Date;
+                            _logger.LogInformation("✅ Parsed date (Thai): {DateStr} -> {Date:yyyy-MM-dd}", dateStr, entry.Date.Value);
                         }
                         else
                         {
@@ -754,17 +782,17 @@ AI: {{""detail"": ""ทำงานต่างๆ"", ""hours"": 3.0, ""issue_ty
                     }
                     else
                     {
-                        _logger.LogDebug("📅 Date is null or empty string");
+                        _logger.LogInformation("📅 Date is null or empty string");
                     }
                 }
                 else if (dateProp.ValueKind == JsonValueKind.Null)
                 {
-                    _logger.LogDebug("📅 Date is null");
+                    _logger.LogInformation("📅 Date is null");
                 }
             }
             else
             {
-                _logger.LogDebug("📅 Date field not found in JSON");
+                _logger.LogInformation("📅 Date field not found in JSON");
             }
 
             return entry;

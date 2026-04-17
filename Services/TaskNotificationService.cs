@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NongTimeAI.Data;
 using NongTimeAI.Models;
 using NongTimeAI.Helpers;
+using NongTimeAI.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace NongTimeAI.Services;
@@ -10,13 +11,16 @@ public class TaskNotificationService : ITaskNotificationService
 {
     private readonly TimesheetDbContext _dbContext;
     private readonly ILogger<TaskNotificationService> _logger;
+    private readonly DatabaseProvider _databaseProvider;
 
     public TaskNotificationService(
         TimesheetDbContext dbContext,
-        ILogger<TaskNotificationService> logger)
+        ILogger<TaskNotificationService> logger,
+        DatabaseProviderService databaseProviderService)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _databaseProvider = databaseProviderService.Provider;
     }
 
     public async Task<List<PendingTaskDto>> GetPendingTasksAsync(string userId)
@@ -150,31 +154,59 @@ public class TaskNotificationService : ITaskNotificationService
             _logger.LogInformation("📋 Project task found: TaskId={TaskId}, ProjectHeaderId={ProjectHeaderId}",
                 projectTask.ProjectTaskId, projectTask.ProjectHeaderId);
 
-            // ✅ แปลงวันที่ให้เป็น UTC
+            // ✅ แปลงวันที่ตาม Database Provider
+            // - PostgreSQL timestamptz: ต้องการ UTC เท่านั้น
+            // - SQL Server datetime: ไม่มี timezone awareness → ส่ง Local Time ตรงๆ
             DateTime actualDate;
             if (entry.Date.HasValue)
             {
-                // ถ้ามีวันที่ระบุมา แต่เป็น Unspecified ให้ถือว่าเป็นเวลาท้องถิ่น แล้วแปลงเป็น UTC
-                if (entry.Date.Value.Kind == DateTimeKind.Unspecified)
+                // ✅ ใช้เวลาไทย (ICT/Bangkok Timezone) เป็นฐาน
+                var thaiZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                var thaiDate = entry.Date.Value;
+
+                if (_databaseProvider == DatabaseProvider.PostgreSQL)
                 {
-                    actualDate = DateTime.SpecifyKind(entry.Date.Value, DateTimeKind.Local).ToUniversalTime();
+                    // PostgreSQL: แปลงเป็น UTC
+                    var thaiDateTime = DateTime.SpecifyKind(thaiDate, DateTimeKind.Unspecified);
+                    actualDate = TimeZoneInfo.ConvertTimeToUtc(thaiDateTime, thaiZone);
+
+                    _logger.LogInformation("📅 [PostgreSQL] Date: Thai={ThaiDate:yyyy-MM-dd} -> UTC={ActualDate:yyyy-MM-dd HH:mm:ss}", 
+                        thaiDate, actualDate);
                 }
-                else if (entry.Date.Value.Kind == DateTimeKind.Local)
+                else // SQL Server
                 {
-                    actualDate = entry.Date.Value.ToUniversalTime();
-                }
-                else
-                {
-                    actualDate = entry.Date.Value; // Already UTC
+                    // SQL Server: ใช้ Local Time ตรงๆ (ไม่แปลง)
+                    actualDate = DateTime.SpecifyKind(thaiDate, DateTimeKind.Unspecified);
+
+                    _logger.LogInformation("📅 [SQL Server] Date: Thai={ThaiDate:yyyy-MM-dd} (saved as-is)", thaiDate);
                 }
             }
             else
             {
-                // ไม่มีวันที่ระบุ ใช้วันนี้ (UTC)
-                actualDate = DateTime.UtcNow;
+                // ✅ ไม่มีวันที่ระบุ ใช้วันนี้ (เวลาไทย)
+                var thaiZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                var nowThai = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, thaiZone);
+                var todayThai = nowThai.Date;
+
+                if (_databaseProvider == DatabaseProvider.PostgreSQL)
+                {
+                    // PostgreSQL: แปลงเป็น UTC
+                    actualDate = TimeZoneInfo.ConvertTimeToUtc(todayThai, thaiZone);
+
+                    _logger.LogInformation("📅 [PostgreSQL] No date specified: Thai={ThaiDate:yyyy-MM-dd} -> UTC={ActualDate:yyyy-MM-dd HH:mm:ss}", 
+                        todayThai, actualDate);
+                }
+                else // SQL Server
+                {
+                    // SQL Server: ใช้ Local Time ตรงๆ
+                    actualDate = DateTime.SpecifyKind(todayThai, DateTimeKind.Unspecified);
+
+                    _logger.LogInformation("📅 [SQL Server] No date specified: Thai={ThaiDate:yyyy-MM-dd} (saved as-is)", todayThai);
+                }
             }
 
-            _logger.LogInformation("📅 Actual date (UTC): {ActualDate}", actualDate);
+            _logger.LogInformation("📅 Final ActualDate: {ActualDate:yyyy-MM-dd HH:mm:ss} Kind={Kind} Provider={Provider}", 
+                actualDate, actualDate.Kind, _databaseProvider);
 
             // Create tracking entry
             var tracking = new ProjectTaskTracking
